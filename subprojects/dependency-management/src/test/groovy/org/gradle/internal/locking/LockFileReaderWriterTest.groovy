@@ -48,7 +48,7 @@ class LockFileReaderWriterTest extends Specification {
         lockFileReaderWriter.writeUniqueLockfile([a: ['foo', 'bar'], b: ['foo'], c: []])
 
         then:
-        lockDir.file(LockFileReaderWriter.UNIQUE_LOCKFILE_NAME).text == """${LockFileReaderWriter.LOCKFILE_HEADER_LIST.join('\n')}
+        lockDir.file(LockFileReaderWriter.UNIQUE_LOCKFILE_NAME).text == """${LockFileReaderWriter.LOCKFILE_HEADER_LIST.join(System.lineSeparator())}
 bar=a
 foo=a,b
 empty=c
@@ -60,7 +60,7 @@ empty=c
         lockFileReaderWriter.writeLockFile('conf', ['line1', 'line2'])
 
         then:
-        lockDir.file('conf.lockfile').text == """${LockFileReaderWriter.LOCKFILE_HEADER_LIST.join('\n')}
+        lockDir.file('conf.lockfile').text == """${LockFileReaderWriter.LOCKFILE_HEADER_LIST.join(System.lineSeparator())}
 line1
 line2
 """
@@ -102,7 +102,7 @@ empty=d
         lockFileReaderWriter.writeUniqueLockfile([a: ['foo', 'bar'], b: ['foo'], c: []])
 
         then:
-        lockDir.file("buildscript-$LockFileReaderWriter.UNIQUE_LOCKFILE_NAME").text == """${LockFileReaderWriter.LOCKFILE_HEADER_LIST.join('\n')}
+        lockDir.file("buildscript-$LockFileReaderWriter.UNIQUE_LOCKFILE_NAME").text == """${LockFileReaderWriter.LOCKFILE_HEADER_LIST.join(System.lineSeparator())}
 bar=a
 foo=a,b
 empty=c
@@ -117,7 +117,7 @@ empty=c
         lockFileReaderWriter.writeLockFile('conf', ['line1', 'line2'])
 
         then:
-        lockDir.file('buildscript-conf.lockfile').text == """${LockFileReaderWriter.LOCKFILE_HEADER_LIST.join('\n')}
+        lockDir.file('buildscript-conf.lockfile').text == """${LockFileReaderWriter.LOCKFILE_HEADER_LIST.join(System.lineSeparator())}
 line1
 line2
 """
@@ -156,6 +156,21 @@ empty=d
         result == [a: ['bar', 'foo'], b: ['foo'], c: ['bar', 'foo'], d: []]
     }
 
+    def 'fails to read a unique lockfile if root could not be determined'() {
+        FileResolver resolver = Mock()
+        resolver.canResolveRelativePath() >> false
+        lockFileReaderWriter = new LockFileReaderWriter(resolver, context)
+
+        when:
+        lockFileReaderWriter.readUniqueLockFile()
+
+        then:
+        def ex = thrown(IllegalStateException)
+        1 * context.getProjectPath() >> Path.path('foo')
+        ex.getMessage().contains('Dependency locking cannot be used for project')
+        ex.getMessage().contains('foo')
+    }
+
     def 'fails to read a legacy lockfile if root could not be determined'() {
         FileResolver resolver = Mock()
         resolver.canResolveRelativePath() >> false
@@ -168,6 +183,21 @@ empty=d
         def ex = thrown(IllegalStateException)
         1 * context.identityPath('foo') >> Path.path('foo')
         ex.getMessage().contains('Dependency locking cannot be used for configuration')
+        ex.getMessage().contains('foo')
+    }
+
+    def 'fails to write a unique lockfile if root could not be determined'() {
+        FileResolver resolver = Mock()
+        resolver.canResolveRelativePath() >> false
+        lockFileReaderWriter = new LockFileReaderWriter(resolver, context)
+
+        when:
+        lockFileReaderWriter.writeUniqueLockfile([foo: ['a:b:1.0']])
+
+        then:
+        def ex = thrown(IllegalStateException)
+        1 * context.getProjectPath() >> Path.path('foo')
+        ex.getMessage().contains('Dependency locking cannot be used for project')
         ex.getMessage().contains('foo')
     }
 
